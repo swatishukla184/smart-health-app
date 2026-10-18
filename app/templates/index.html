@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Health | Real-Time PHC & CHC Management</title>
+  <meta name="description" content="Real-time facility management for Primary and Community Health Centres: medicine stock, beds, footfall, doctor attendance, and Gemini AI forecasting.">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230284c7'><path d='M19 10.5h-4.5V6a1.5 1.5 0 0 0-3 0v4.5H7a1.5 1.5 0 0 0 0 3h4.5V18a1.5 1.5 0 0 0 3 0v-4.5H19a1.5 1.5 0 0 0 0-3z'/></svg>">
+</head>
+<body>
+  <!-- Accessible Skip Link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- ARIA Live Announcer for Screen Readers -->
+  <div id="live-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+  <!-- Header & Role Selector -->
+  <header class="app-header" role="banner">
+    <div class="header-container">
+      <div class="brand-group">
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="facility-title">Smart Health PHC / CHC</h1>
+          <p class="facility-subtitle">Public Healthcare Real-Time Management & Intelligence</p>
+        </div>
+      </div>
+
+      <!-- Live Clock & Status -->
+      <div class="header-status">
+        <div class="status-indicator" id="connection-status" aria-label="System status: Connected">
+          <span class="status-dot green" aria-hidden="true"></span>
+          <span class="status-text" id="live-clock">Live Monitoring</span>
+        </div>
+
+        <!-- Role Selector Switcher -->
+        <div class="role-selector-box">
+          <label for="role-select" class="role-label">Active Role:</label>
+          <select id="role-select" class="role-select" aria-label="Switch operational user role">
+            <option value="admin">Admin (MOIC)</option>
+            <option value="doctor">Doctor (Medical Officer)</option>
+            <option value="pharmacist">Pharmacist (Dispensary)</option>
+          </select>
+          <span class="role-badge" id="current-role-badge">Admin</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-nav" role="navigation" aria-label="Facility sections">
+      <div class="nav-container">
+        <button class="nav-tab active" data-tab="dashboard-view" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="dashboard-view">
+          <span class="tab-icon" aria-hidden="true">📊</span> Live Dashboard
+        </button>
+        <button class="nav-tab" data-tab="medicines-view" id="tab-medicines" role="tab" aria-selected="false" aria-controls="medicines-view">
+          <span class="tab-icon" aria-hidden="true">💊</span> Medicine Stock
+        </button>
+        <button class="nav-tab" data-tab="beds-view" id="tab-beds" role="tab" aria-selected="false" aria-controls="beds-view">
+          <span class="tab-icon" aria-hidden="true">🛏️</span> Bed Availability
+        </button>
+        <button class="nav-tab" data-tab="doctors-view" id="tab-doctors" role="tab" aria-selected="false" aria-controls="doctors-view">
+          <span class="tab-icon" aria-hidden="true">🩺</span> Doctor Attendance
+        </button>
+        <button class="nav-tab" data-tab="ai-view" id="tab-ai" role="tab" aria-selected="false" aria-controls="ai-view">
+          <span class="tab-icon" aria-hidden="true">✨</span> AI Forecasting (Gemini)
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Urgent Alerts Banner -->
+  <section class="alerts-banner" id="alerts-section" aria-label="Facility critical alerts" role="region">
+    <div class="banner-inner">
+      <div class="alerts-header">
+        <h2 class="alerts-heading">
+          <span class="alert-bell-icon" aria-hidden="true">🔔</span>
+          Operational Alerts (<span id="alert-count-number">0</span>)
+        </h2>
+        <button class="btn-text" id="refresh-all-btn" aria-label="Refresh dashboard data immediately">
+          ↻ Refresh Now
+        </button>
+      </div>
+      <div class="alerts-list" id="alerts-container" role="list">
+        <!-- Live alerts injected via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Application Content -->
+  <main id="main-content" class="main-content" role="main">
+
+    <!-- ================= VIEW 1: LIVE DASHBOARD ================= -->
+    <section id="dashboard-view" class="tab-panel active" role="tabpanel" aria-labelledby="tab-dashboard">
+      <div class="panel-header">
+        <div>
+          <h2>Facility Live Overview</h2>
+          <p class="text-muted">Real-time status of critical health centre resources</p>
+        </div>
+        <div class="quick-action-bar">
+          <button class="btn btn-warning" id="btn-simulate-surge" title="Demo Feature: Inject simulated monsoon epidemic surge to test real-time alerts">
+            ⚡ Simulate Monsoon Surge
+          </button>
+          <button class="btn btn-outline" id="btn-reset-baseline" title="Reset facility data to authentic baseline">
+            ↺ Reset
+          </button>
+          <button class="btn btn-primary" id="btn-quick-stock" aria-haspopup="dialog">
+            + Adjust Stock
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-beds" aria-haspopup="dialog">
+            🛏️ Update Beds
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-attendance" aria-haspopup="dialog">
+            🩺 Check-in / Out
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat Cards Grid -->
+      <div class="stats-grid">
+        <!-- Beds Card -->
+        <div class="stat-card" id="card-beds">
+          <div class="stat-card-header">
+            <span class="stat-title">Bed Availability</span>
+            <span class="stat-badge" id="stat-bed-badge">Calculating...</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-main">
+              <span class="stat-number" id="stat-free-beds">-</span>
+              <span class="stat-unit">available</span>
+            </div>
+            <div class="progress-bar-bg" role="progressbar" id="bed-progress-bar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Bed occupancy percentage">
+              <div class="progress-bar-fill" id="bed-progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="stat-footer-text" id="stat-beds-breakdown">
+              Total: - | Occupied: - | Cleaning: -
+            </div>
+          </div>
+        </div>
+
+        <!-- Medicine Stock Card -->
+        <div class="stat-card" id="card-stock">
+          <div class="stat-card-header">
+            <span class="stat-title">Medicine Stock</span>
+            <span class="stat-badge badge-warning" id="stat-stock-badge">0 Alerts</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-main">
+              <span class="stat-number" id="stat-total-meds">-</span>
+              <span class="stat-unit">tracked items</span>
+            </div>
+            <div class="stat-row">
+              <span class="text-danger font-bold" id="stat-stockout-count">0 Out of Stock</span>
+              <span class="text-warning font-bold" id="stat-lowstock-count">0 Low Stock</span>
+            </div>
+            <div class="stat-footer-text">
+              Automated reorder triggers active
+            </div>
+          </div>
+        </div>
+
+        <!-- Doctor Attendance Card -->
+        <div class="stat-card" id="card-doctors">
+          <div class="stat-card-header">
+            <span class="stat-title">Doctors On Duty</span>
+            <span class="stat-badge badge-success" id="stat-doc-badge">Normal</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-main">
+              <span class="stat-number" id="stat-onduty-doctors">-</span>
+              <span class="stat-unit" id="stat-total-doctors">/ - doctors</span>
+            </div>
+            <div class="stat-row">
+              <span class="status-dot green"></span>
+              <span id="stat-doc-status-text">OPD & Casualty Covered</span>
+            </div>
+            <div class="stat-footer-text">
+              Real-time shift roster
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Footfall Card -->
+        <div class="stat-card" id="card-footfall">
+          <div class="stat-card-header">
+            <span class="stat-title">Today's Footfall</span>
+            <button class="btn-xs btn-outline" id="btn-add-footfall" aria-haspopup="dialog">+ Log Visit</button>
+          </div>
+          <div class="stat-body">
+            <div class="stat-main">
+              <span class="stat-number" id="stat-today-footfall">-</span>
+              <span class="stat-unit">patients</span>
+            </div>
+            <div class="stat-row">
+              <span class="text-muted">Peak Hours: 09:30 - 12:30</span>
+            </div>
+            <div class="stat-footer-text">
+              OPD, Emergency, Maternal & Child
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual Section: Ward Status & Doctor Roster Preview -->
+      <div class="dashboard-split-grid">
+        <!-- Wards Overview -->
+        <div class="content-box">
+          <div class="box-header">
+            <h3>Ward Bed Occupancy Matrix</h3>
+            <button class="btn-link" id="link-view-all-beds">View Details →</button>
+          </div>
+          <div class="ward-cards-list" id="dashboard-wards-list">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- Doctor Roster Preview -->
+        <div class="content-box">
+          <div class="box-header">
+            <h3>Medical Officers On Duty</h3>
+            <button class="btn-link" id="link-view-all-docs">View Roster →</button>
+          </div>
+          <div class="roster-list" id="dashboard-doctors-list">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 7-Day Patient Footfall Interactive Trend Chart -->
+      <div class="content-box" style="margin-top: 20px;">
+        <div class="box-header">
+          <div>
+            <h3>7-Day Patient Influx & Department Breakdown</h3>
+            <p class="text-muted">Daily arrivals monitored across General OPD, Emergency, and Maternal Care</p>
+          </div>
+          <span class="stat-badge badge-neutral" id="footfall-trend-summary">Loading weekly trend...</span>
+        </div>
+        <div id="footfall-chart-container" class="chart-container" role="region" aria-label="7-Day Footfall Trend Visual Bar Chart" tabindex="0">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 2: MEDICINE INVENTORY ================= -->
+    <section id="medicines-view" class="tab-panel" role="tabpanel" aria-labelledby="tab-medicines" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>Medicine Stock Inventory</h2>
+          <p class="text-muted">Monitor stock levels, reorder thresholds, and dispense drugs safely</p>
+        </div>
+        <div class="quick-action-bar">
+          <button class="btn btn-secondary" id="btn-export-indent" aria-label="Export District Drug Warehouse Indent Sheet as CSV">
+            📥 Export District Indent (CSV)
+          </button>
+          <button class="btn btn-primary" id="btn-add-medicine-modal" aria-haspopup="dialog">
+            + Add New Medicine
+          </button>
+        </div>
+      </div>
+
+      <!-- Filters & Search -->
+      <div class="filter-bar" role="search" aria-label="Search and filter medicines">
+        <div class="search-field">
+          <label for="med-search" class="sr-only">Search medicine by name or batch</label>
+          <input type="text" id="med-search" placeholder="🔍 Search medicine name, batch, or therapeutic class..." class="input-text">
+        </div>
+        <div class="filter-field">
+          <label for="med-filter-status" class="sr-only">Filter by stock status</label>
+          <select id="med-filter-status" class="input-select">
+            <option value="">All Statuses</option>
+            <option value="OUT_OF_STOCK">Out of Stock (Urgent)</option>
+            <option value="LOW_STOCK">Low Stock</option>
+            <option value="IN_STOCK">In Stock</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Medicine Inventory Table -->
+      <div class="table-container" role="region" aria-label="Medicines stock table" tabindex="0">
+        <table class="data-table" id="medicines-table">
+          <thead>
+            <tr>
+              <th scope="col">Medicine Name</th>
+              <th scope="col">Category</th>
+              <th scope="col">Current Stock</th>
+              <th scope="col">Reorder Level</th>
+              <th scope="col">Status</th>
+              <th scope="col">Batch & Expiry</th>
+              <th scope="col" class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="medicines-tbody">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 3: BED AVAILABILITY ================= -->
+    <section id="beds-view" class="tab-panel" role="tabpanel" aria-labelledby="tab-beds" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>Ward Bed Availability & Allocation</h2>
+          <p class="text-muted">Manage inpatient capacity across Emergency, General, Maternity, and Pediatric wards</p>
+        </div>
+      </div>
+
+      <div class="wards-full-grid" id="wards-full-container">
+        <!-- Injected via JS -->
+      </div>
+    </section>
+
+    <!-- ================= VIEW 4: DOCTOR ATTENDANCE ================= -->
+    <section id="doctors-view" class="tab-panel" role="tabpanel" aria-labelledby="tab-doctors" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>Doctor Attendance & Shift Roster</h2>
+          <p class="text-muted">Real-time attendance tracking for clinical staff and medical officers</p>
+        </div>
+        <div class="quick-action-bar">
+          <button class="btn btn-secondary" id="btn-add-doctor-modal" aria-haspopup="dialog">
+            + Add Medical Officer
+          </button>
+        </div>
+      </div>
+
+      <div class="doctors-cards-grid" id="doctors-full-container">
+        <!-- Injected via JS -->
+      </div>
+    </section>
+
+    <!-- ================= VIEW 5: AI FORECASTING (GEMINI) ================= -->
+    <section id="ai-view" class="tab-panel" role="tabpanel" aria-labelledby="tab-ai" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>AI Forecasting & Operational Intelligence</h2>
+          <p class="text-muted">Powered by Google Gemini API with epidemiological demand forecasting</p>
+        </div>
+        <div class="ai-status-pill" id="ai-mode-pill">
+          <span class="status-dot purple" aria-hidden="true"></span>
+          <span id="ai-mode-text">Checking AI Engine...</span>
+        </div>
+      </div>
+
+      <!-- AI Action Buttons -->
+      <div class="ai-controls-bar">
+        <button class="btn btn-primary" id="btn-forecast-medicines">
+          ✨ Forecast Medicine Demand (7 Days)
+        </button>
+        <button class="btn btn-secondary" id="btn-forecast-footfall">
+          📈 Forecast Patient Footfall (72 Hours)
+        </button>
+      </div>
+
+      <!-- AI Result Area -->
+      <div id="ai-loading" class="ai-loading-container" style="display: none;" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="loading-text">Analyzing clinical footfall trends, seasonal burdens, and stock velocity via Gemini API...</p>
+      </div>
+
+      <div id="ai-results-container" class="ai-results-wrapper">
+        <div class="content-box">
+          <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">🧠</span>
+            <h3>Ready for Clinical AI Prediction</h3>
+            <p class="text-muted">Click one of the forecast buttons above to generate automated supply chain and patient surge projections.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= MODAL: UPDATE STOCK ================= -->
+  <div class="modal-backdrop" id="modal-stock" role="dialog" aria-modal="true" aria-labelledby="modal-stock-title" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-stock-title">Update Medicine Stock</h3>
+        <button class="btn-close" id="close-modal-stock" aria-label="Close stock update modal">✕</button>
+      </div>
+      <form id="form-stock-update" novalidate>
+        <input type="hidden" id="stock-med-id" name="med_id">
+        <div class="form-group">
+          <label for="stock-med-name">Selected Medicine:</label>
+          <input type="text" id="stock-med-name" class="input-text" readonly disabled>
+        </div>
+        <div class="form-group">
+          <label for="stock-action">Action:</label>
+          <select id="stock-action" class="input-select" required>
+            <option value="DEDUCT">Dispense to Patient (-)</option>
+            <option value="ADD">Restock / Receive Shipment (+)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="stock-quantity">Quantity (<span id="stock-unit-label">units</span>):</label>
+          <input type="number" id="stock-quantity" class="input-text" min="1" max="10000" placeholder="e.g. 10" required>
+          <small class="form-hint" id="stock-available-hint">Available in stock: -</small>
+        </div>
+        <div class="form-group">
+          <label for="stock-notes">Clinical Notes / Prescription Ref:</label>
+          <input type="text" id="stock-notes" class="input-text" placeholder="e.g. Dispensed to OPD patient #412">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="cancel-modal-stock">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submit-stock-btn">Confirm Stock Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: UPDATE BEDS ================= -->
+  <div class="modal-backdrop" id="modal-beds" role="dialog" aria-modal="true" aria-labelledby="modal-beds-title" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-beds-title">Update Ward Beds</h3>
+        <button class="btn-close" id="close-modal-beds" aria-label="Close bed update modal">✕</button>
+      </div>
+      <form id="form-beds-update" novalidate>
+        <input type="hidden" id="bed-ward-id">
+        <div class="form-group">
+          <label for="bed-ward-select">Select Ward:</label>
+          <select id="bed-ward-select" class="input-select" required>
+            <!-- Injected via JS -->
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="bed-occupied-input">Occupied Beds:</label>
+            <input type="number" id="bed-occupied-input" class="input-text" min="0" required>
+          </div>
+          <div class="form-group col-half">
+            <label for="bed-cleaning-input">Sanitizing / Cleaning:</label>
+            <input type="number" id="bed-cleaning-input" class="input-text" min="0" required>
+          </div>
+        </div>
+        <div class="stat-footer-text" id="bed-capacity-info">
+          Total Ward Capacity: <span id="bed-total-capacity">-</span> beds
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="cancel-modal-beds">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Bed Allocation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ADD MEDICINE ================= -->
+  <div class="modal-backdrop" id="modal-add-med" role="dialog" aria-modal="true" aria-labelledby="modal-add-med-title" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-add-med-title">Add New Medicine to Stock</h3>
+        <button class="btn-close" id="close-modal-add-med" aria-label="Close add medicine modal">✕</button>
+      </div>
+      <form id="form-add-medicine" novalidate>
+        <div class="form-group">
+          <label for="new-med-name">Medicine Name & Strength: <span class="text-danger">*</span></label>
+          <input type="text" id="new-med-name" class="input-text" placeholder="e.g. Ciprofloxacin 500mg" required minlength="2">
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="new-med-category">Category: <span class="text-danger">*</span></label>
+            <input type="text" id="new-med-category" class="input-text" placeholder="e.g. Antibiotic" required>
+          </div>
+          <div class="form-group col-half">
+            <label for="new-med-form">Dosage Form: <span class="text-danger">*</span></label>
+            <input type="text" id="new-med-form" class="input-text" placeholder="e.g. Tablet" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="new-med-quantity">Current Quantity: <span class="text-danger">*</span></label>
+            <input type="number" id="new-med-quantity" class="input-text" min="0" placeholder="100" required>
+          </div>
+          <div class="form-group col-half">
+            <label for="new-med-unit">Unit: <span class="text-danger">*</span></label>
+            <input type="text" id="new-med-unit" class="input-text" placeholder="strips / vials" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="new-med-reorder">Reorder Threshold: <span class="text-danger">*</span></label>
+            <input type="number" id="new-med-reorder" class="input-text" min="1" placeholder="50" required>
+          </div>
+          <div class="form-group col-half">
+            <label for="new-med-expiry">Expiry Date: <span class="text-danger">*</span></label>
+            <input type="date" id="new-med-expiry" class="input-text" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="new-med-batch">Batch Number:</label>
+          <input type="text" id="new-med-batch" class="input-text" placeholder="e.g. BATCH-2026-X">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="cancel-modal-add-med">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Medicine Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: LOG FOOTFALL ================= -->
+  <div class="modal-backdrop" id="modal-footfall" role="dialog" aria-modal="true" aria-labelledby="modal-ff-title" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-ff-title">Log Patient Footfall</h3>
+        <button class="btn-close" id="close-modal-footfall" aria-label="Close footfall modal">✕</button>
+      </div>
+      <form id="form-footfall" novalidate>
+        <div class="form-group">
+          <label for="ff-department">Department / Clinic:</label>
+          <select id="ff-department" class="input-select" required>
+            <option value="General OPD">General OPD</option>
+            <option value="Emergency & Casualty">Emergency & Casualty</option>
+            <option value="Maternal & Child Health">Maternal & Child Health / Immunization</option>
+            <option value="Pharmacy Dispensary">Pharmacy Dispensary</option>
+            <option value="NCD Chronic Clinic">NCD Chronic Care Clinic</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ff-count">Number of Patients:</label>
+          <input type="number" id="ff-count" class="input-text" min="1" max="500" value="1" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="cancel-modal-footfall">Cancel</button>
+          <button type="submit" class="btn btn-primary">Record Footfall</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container for Accessible Feedback -->
+  <div id="toast-container" class="toast-container" aria-live="assertive"></div>
+
+  <!-- Application Client Scripts -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/forms.js"></script>
+  <script src="/static/js/ai_view.js"></script>
+</body>
+</html>

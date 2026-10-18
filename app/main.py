@@ -74,14 +74,15 @@ def readiness_check():
 def serve_dashboard(request: Request):
     """Renders the accessible Single Page Application."""
     return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
+        request=request,
+        name="index.html",
+        context={
             "app_name": settings.app_name,
             "version": settings.app_version,
             "has_gemini": bool(settings.gemini_api_key),
         }
     )
+
 
 
 if __name__ == "__main__":

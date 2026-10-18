@@ -16,6 +16,20 @@ def test_readyz_endpoint(client: TestClient):
     assert response.json()["status"] == "ready"
 
 
+def test_root_html_page(client: TestClient):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Smart Health" in response.text
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_vercel_entrypoint_import():
+    from api.index import app as vercel_app
+    from fastapi import FastAPI
+    assert isinstance(vercel_app, FastAPI)
+
+
+
 def test_get_dashboard_stats(client: TestClient):
     response = client.get("/api/dashboard/stats", headers={"X-User-Role": "admin"})
     assert response.status_code == 200
